@@ -123,8 +123,8 @@ $summary = $stmt->fetch(PDO::FETCH_ASSOC);
                 <th>Śr</th>
                 <th>Czw</th>
                 <th>Pt</th>
-                <th>Sob</th>
-                <th>Nd</th>
+                <th style="background-color: #22284B">Sob</th>
+                <th style="background-color: #4B2222">Nd</th>
             </tr>
             <tr>
                 <?php

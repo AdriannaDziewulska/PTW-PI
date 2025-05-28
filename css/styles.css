@@ -123,7 +123,6 @@ div.footer {
     font-size: 0.9em;
 }
 
-/* Nadpisz ogólny styl table tylko dla kalendarza */
 table.calendar {
     border-collapse: collapse;
     width: 800px;
@@ -131,27 +130,23 @@ table.calendar {
     background-color: #222;
     color: gold;
     table-layout: fixed;
-    /* Ważne dla równych kolumn */
 }
 
 table.calendar th,
 table.calendar td {
     border: 1px solid #444;
     width: calc(100% / 7);
-    /* Równo 7 kolumn */
     vertical-align: top;
     padding: 5px;
     position: relative;
 }
 
-/* Nagłówki */
 table.calendar th {
     background-color: #333;
     height: 20px;
     text-align: center;
 }
 
-/* Dni miesiąca */
 table.calendar td {
     height: 90px;
     box-sizing: border-box;
@@ -192,6 +187,17 @@ td {
 th {
     background-color: #333;
 }
+
+table.calendar td:last-child,
+table.calendar th:last-child {
+    background-color: #351717;  
+}
+
+table.calendar td:nth-child(6),
+table.calendar th:nth-child(6) {
+    background-color: #171935;  
+}
+
 
 .btn-delete {
     color: red;
