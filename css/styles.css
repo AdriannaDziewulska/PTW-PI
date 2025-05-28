@@ -18,7 +18,7 @@ body {
 
 .header {
     display: flex;
-    justify-content:space-between;
+    justify-content: space-between;
     align-items: center;
     max-width: 900px;
     margin: auto;
@@ -32,16 +32,16 @@ body {
 }
 
 .user-login form {
-    display: inline; 
+    display: inline;
 }
 
 
 .form-login {
-position: absolute;
+    position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    
+
     width: 400px;
     background-color: #222;
     color: gold;
@@ -80,7 +80,8 @@ textarea::placeholder {
 }
 
 button,
-.button, button.button {
+.button,
+button.button {
     background-color: gold;
     color: #121212;
     border: none;
@@ -116,7 +117,7 @@ a {
 
 }
 
-div.footer{
+div.footer {
     text-align: center;
     padding-top: 10px;
     font-size: 0.9em;
@@ -129,13 +130,15 @@ table.calendar {
     margin: auto;
     background-color: #222;
     color: gold;
-    table-layout: fixed; /* Ważne dla równych kolumn */
+    table-layout: fixed;
+    /* Ważne dla równych kolumn */
 }
 
 table.calendar th,
 table.calendar td {
     border: 1px solid #444;
-    width: calc(100% / 7); /* Równo 7 kolumn */
+    width: calc(100% / 7);
+    /* Równo 7 kolumn */
     vertical-align: top;
     padding: 5px;
     position: relative;
@@ -236,17 +239,34 @@ p.error {
     font-weight: bold;
 }
 
-.day_details{
+.day_details {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    
+
     width: 800px;
     background-color: #222;
     color: gold;
     padding: 20px 30px;
     border-radius: 8px;
     box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
-    text-align: left;     
+    text-align: left;
+}
+
+
+@media (max-width: 1024px) {
+    
+    body {
+        transform: scale(0.8);
+        transform-origin: top center;
+        width: 100%;
+        height: auto;
+        overflow-x: hidden;
+        padding: 0;
+    }
+
+    html {
+        overflow-x: hidden;
+    }
 }
