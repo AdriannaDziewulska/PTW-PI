@@ -9,13 +9,14 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
+if (!isset($_GET['entry_id']) || !is_numeric($_GET['entry_id'])) {
     die("Nieprawidłowy ID.");
 }
+$id = intval($_GET['entry_id']);
 
-$id = intval($_GET['id']);
 
-$stmt = $pdo->prepare("SELECT * FROM entries WHERE id = ? AND user_id = ?");
+
+$stmt = $pdo->prepare("SELECT * FROM entries WHERE entry_id = ? AND user_id = ?");
 $stmt->execute([$id, $user_id]);
 $entry = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -23,20 +24,32 @@ if (!$entry) {
     die("Nie znaleziono wpisu.");
 }
 
+// Pobierz dostępnych pracodawców
+$employers = $pdo->query("SELECT employer_id, employer_name FROM employers")->fetchAll(PDO::FETCH_ASSOC);
+// Pobierz dostępne zmiany
+$shifts = $pdo->query("SELECT shift_id, shift_name FROM shifts")->fetchAll(PDO::FETCH_ASSOC);
+// Pobierz dostępne stawki
+$rates = $pdo->query("SELECT rate_id, name, rate, currency FROM rate")->fetchAll(PDO::FETCH_ASSOC);
+
+
+
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $start_time = $_POST['start_time'];
-    $end_time = $_POST['end_time'];
-    $rate = floatval($_POST['rate']);
+    $entry_date = $_POST['entry_date'];
+    $employer_id = $_POST['employer_id'];
+    $shift_id = $_POST['shift_id'];
+    $rate_id = $_POST['rate_id'];
     $description = $_POST['description'];
 
-    $stmt = $pdo->prepare("UPDATE entries SET start_time = ?, end_time = ?, rate = ?, description = ? WHERE id = ? AND user_id = ?");
-    if ($stmt->execute([$start_time, $end_time, $rate, $description, $id, $user_id])) {
-        header("Location: day_details.php?date=" . $entry['entry_date']);
+    $stmt = $pdo->prepare("UPDATE entries SET entry_date = ?, employer_id = ?, shift_id = ?, rate_id = ?, description = ? WHERE entry_id = ? AND user_id = ?");
+    if ($stmt->execute([$entry_date, $employer_id, $shift_id, $rate_id, $description, $id, $user_id])) {
+        header("Location: day_details.php?date=" . urlencode($entry_date) . "&id=" . $id);
         exit;
     } else {
         echo "Błąd aktualizacji.";
     }
 }
+
 ?>
 
 <!DOCTYPE html>
@@ -55,20 +68,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <h2>Edytuj wpis z dnia <?= htmlspecialchars($entry['entry_date']) ?></h2>
 
         <form method="POST">
-            <label>Godzina rozpoczęcia:</label>
-            <input type="time" name="start_time" value="<?= htmlspecialchars($entry['start_time']) ?>" required>
+    <label>Data:</label>
+    <input type="date" name="entry_date" value="<?= htmlspecialchars($entry['entry_date']) ?>" required>
 
-            <label>Godzina zakończenia:</label>
-            <input type="time" name="end_time" value="<?= htmlspecialchars($entry['end_time']) ?>" required>
+    <label>Pracodawca:</label>
+    <select name="employer_id" required>
+        <?php foreach ($employers as $employer): ?>
+            <option value="<?= $employer['employer_id'] ?>" <?= $employer['employer_id'] == $entry['employer_id'] ? 'selected' : '' ?>>
+                <?= htmlspecialchars($employer['employer_name']) ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
 
-            <label>Stawka (zł/h):</label>
-            <input type="number" step="0.01" name="rate" value="<?= htmlspecialchars($entry['rate']) ?>" required>
+    <label>Zmiana:</label>
+    <select name="shift_id" required>
+        <?php foreach ($shifts as $shift): ?>
+            <option value="<?= $shift['shift_id'] ?>" <?= $shift['shift_id'] == $entry['shift_id'] ? 'selected' : '' ?>>
+                <?= htmlspecialchars($shift['shift_name']) ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
 
-            <label>Opis:</label>
-            <textarea name="description" rows="4"><?= htmlspecialchars($entry['description']) ?></textarea>
+    <label>Stawka:</label>
+    <select name="rate_id" required>
+        <?php foreach ($rates as $rate): ?>
+            <option value="<?= $rate['rate_id'] ?>" <?= $rate['rate_id'] == $entry['rate_id'] ? 'selected' : '' ?>>
+                <?= htmlspecialchars($rate['name']) ?> - <?= number_format($rate['rate'], 2) ?> <?= $rate['currency'] ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
 
-            <button type="submit">Zapisz zmiany</button>
-        </form>
+    <button type="submit">Zapisz zmiany</button>
+</form>
+
     </div>
 </body>
 

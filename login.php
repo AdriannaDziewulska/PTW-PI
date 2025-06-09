@@ -10,15 +10,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->execute([$username]);
     $user = $stmt->fetch();
 
-    if ($user && password_verify($password, $user['password_hash'])) {
-        $_SESSION['user_id'] = $user['id'];
-        header("Location: calendar.php");
-        exit();
+   if ($user && password_verify($password, $user['password_hash'])) {
+    $_SESSION['user_id'] = $user['user_id']; // <-- poprawka tu
+    $_SESSION['username'] = $user['username'];
+    $_SESSION['profile_photo'] = $user['profile_photo'];
+
+    header("Location: calendar.php");
+    exit();
     } else {
         $error = "Nieprawidłowe dane logowania";
     }
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="pl">

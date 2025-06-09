@@ -8,26 +8,50 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $user_id = $_SESSION['user_id'];
-
 $month = isset($_GET['month']) ? intval($_GET['month']) : date('m');
 $year = isset($_GET['year']) ? intval($_GET['year']) : date('Y');
 
 $days_in_month = cal_days_in_month(CAL_GREGORIAN, $month, $year);
 $first_day_week = date('N', strtotime("$year-$month-01"));
 
-$stmt = $pdo->prepare("SELECT username FROM users WHERE id = ?");
+// Dane użytkownika
+$stmt = $pdo->prepare("SELECT username, profile_photo FROM users WHERE user_id = ?");
 $stmt->execute([$user_id]);
-$username = $stmt->fetchColumn();
+$userData = $stmt->fetch(PDO::FETCH_ASSOC);
+$username = $userData['username'];
+$profilePhoto = $userData['profile_photo'];
 
-// Zakres dat (dla statystyk)
-$start_date = isset($_GET['start_date']) ? $_GET['start_date'] : "$year-$month-01";
-$end_date = isset($_GET['end_date']) ? $_GET['end_date'] : "$year-$month-" . str_pad($days_in_month, 2, '0', STR_PAD_LEFT);
+// Zakres dat
+$start_date = $_GET['start_date'] ?? "$year-$month-01";
+$end_date = $_GET['end_date'] ?? "$year-$month-" . str_pad($days_in_month, 2, '0', STR_PAD_LEFT);
 
-// Wpisy do kalendarza (tylko ten miesiąc)
-$stmt = $pdo->prepare("SELECT id, entry_date, start_time, end_time FROM entries WHERE user_id = ? AND YEAR(entry_date) = ? AND MONTH(entry_date) = ?");
+// Pobierz wpisy z bieżącego miesiąca
+$stmt = $pdo->prepare("
+    SELECT 
+        e.entry_id, e.entry_date, 
+        s.start_time, s.end_time, em.employer_background_color AS employer_color
+    FROM entries e
+    JOIN shifts s ON e.shift_id = s.shift_id
+    JOIN employers em ON e.employer_id = em.employer_id
+    WHERE e.user_id = ? AND YEAR(e.entry_date) = ? AND MONTH(e.entry_date) = ?
+");
+
 $stmt->execute([$user_id, $year, $month]);
 $entries = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+
+// Pobierz wszystkie święta
+$holidays = [];
+$stmtHolidays = $pdo->query("SELECT date, name, holidays_background_color FROM holidays");
+while ($row = $stmtHolidays->fetch(PDO::FETCH_ASSOC)) {
+    $holidays[$row['date']] = [
+        'name' => $row['name'],
+        'color' => $row['holidays_background_color']
+    ];
+}
+
+
+// Grupowanie po dacie
 $entries_by_date = [];
 foreach ($entries as $entry) {
     $date = $entry['entry_date'];
@@ -37,35 +61,45 @@ foreach ($entries as $entry) {
     $entries_by_date[$date][] = $entry;
 }
 
-// Statystyki dla wykresów (dla dowolnego zakresu)
-$stats_stmt = $pdo->prepare("SELECT entry_date, total_hours FROM entries WHERE user_id = ? AND entry_date BETWEEN ? AND ?");
+
+// STATYSTYKI - obliczenia ręczne z czasu i stawki
+$stats_stmt = $pdo->prepare("
+    SELECT e.entry_date, s.start_time, s.end_time, r.rate 
+    FROM entries e
+    JOIN shifts s ON e.shift_id = s.shift_id
+    LEFT JOIN rate r ON e.rate_id = r.rate_id
+    WHERE e.user_id = ? AND e.entry_date BETWEEN ? AND ?
+");
 $stats_stmt->execute([$user_id, $start_date, $end_date]);
 $stats_entries = $stats_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Grupowanie godzin po dacie
 $dailyStats = [];
+$sum_hours = 0;
+$sum_earned = 0;
+
 foreach ($stats_entries as $e) {
     $date = $e['entry_date'];
-    $hours = (float)$e['total_hours'];
-    if (!isset($dailyStats[$date])) $dailyStats[$date] = 0;
-    $dailyStats[$date] += $hours;
-}
-ksort($dailyStats);
+    $start = new DateTime($e['start_time']);
+    $end = new DateTime($e['end_time']);
+    $interval = $start->diff($end);
+    $hours = $interval->h + $interval->i / 60;
+    $rate = $e['rate_per_hour'] ?? 0;
+    $earned = round($hours * $rate, 2);
 
+    $dailyStats[$date] = ($dailyStats[$date] ?? 0) + $hours;
+    $sum_hours += $hours;
+    $sum_earned += $earned;
+}
+
+ksort($dailyStats);
 $labels = array_keys($dailyStats);
 $hoursData = array_values($dailyStats);
-$hourlyRate = 25;
-$earningsData = array_map(fn($h) => round($h * $hourlyRate, 2), $hoursData);
+$earningsData = array_map(fn($h) => round($h * 25, 2), $hoursData); // lub zamień 25 na dynamiczną stawkę
 
-$stmt = $pdo->prepare("
-    SELECT 
-        SUM(total_hours) AS sum_hours, 
-        SUM(total_earned) AS sum_earned 
-    FROM entries 
-    WHERE user_id = ? AND entry_date BETWEEN ? AND ?
-");
-$stmt->execute([$user_id, $start_date, $end_date]);
-$summary = $stmt->fetch(PDO::FETCH_ASSOC);
+$summary = [
+    'sum_hours' => $sum_hours,
+    'sum_earned' => $sum_earned
+];
 ?>
 <!DOCTYPE html>
 <html lang="pl">
@@ -82,12 +116,20 @@ $summary = $stmt->fetch(PDO::FETCH_ASSOC);
         <div class="header">
             <h2 style="margin: 0">Pracomierz - Kalendarz</h2>
             <div class="user-login">
+                <img src="uploads/<?= htmlspecialchars($profilePhoto) ?>" alt="Avatar" class="avatar">
                 <span>Witaj, <?= htmlspecialchars($username) ?></span>
                 <form method="post" action="logout.php">
                     <button class="button" type="submit" style="margin: 0">Wyloguj</button>
                 </form>
+                <a href="settings.php">⚙️</a>
             </div>
+
         </div>
+        <form method="get" action="day_details.php" style="margin: 40px; text-align: center;">
+            <input type="date" name="date" required>
+            <button type="submit">Szukaj dnia</button>
+        </form>
+
         <?php
         $month = isset($_GET['month']) ? (int)$_GET['month'] : date('n');
         $year = isset($_GET['year']) ? (int)$_GET['year'] : date('Y');
@@ -134,22 +176,31 @@ $summary = $stmt->fetch(PDO::FETCH_ASSOC);
                     $date_str = sprintf('%04d-%02d-%02d', $year, $month, $day);
                     $is_today = ($date_str == date('Y-m-d')) ? 'today' : '';
 
-                    echo "<td class='$is_today'>";
+                    $holiday = $holidays[$date_str] ?? null;
+                    $holiday_style = $holiday ? "background-color: {$holiday['color']};" : "";
+                    $holiday_title = $holiday ? htmlspecialchars($holiday['name']) : "";
+
+                    echo "<td class='$is_today' style=\"$holiday_style\" title=\"$holiday_title\">";
                     echo "<div class='day-number'>$day</div>";
+                    if ($holiday) {
+                        echo "<div>" . htmlspecialchars($holiday['name']) . "</div>";
+                    }
 
                     if (isset($entries_by_date[$date_str])) {
                         foreach ($entries_by_date[$date_str] as $entry) {
                             $start = substr($entry['start_time'], 0, 5);
                             $end = substr($entry['end_time'], 0, 5);
-                            echo "<a href='day_details.php?date=$date_str&id={$entry['id']}' class='entry'>$start - $end</a>";
+                            $color = htmlspecialchars($entry['employer_color'] ?? '#ccc');
+                            echo "<a href='day_details.php?date=$date_str&id={$entry['entry_id']}' class='entry' style='color: $color;'>$start - $end</a>";
                         }
                     } else {
-                        echo "<a href='add_entry.php?date=$date_str' style='font-size:0.8em;color:#ccc;'>Dodaj wpis</a>";
+                        echo "<a href='add_entry.php?date=$date_str' class='entry' style='background-color: #222'>Dodaj wpis</a>";
                     }
                     echo "</td>";
 
                     if (($day + $first_day_week - 1) % 7 == 0) echo "</tr><tr>";
                 }
+
 
                 $last_day_of_week = ($days_in_month + $first_day_week - 1) % 7;
                 if ($last_day_of_week != 0) {
@@ -158,6 +209,9 @@ $summary = $stmt->fetch(PDO::FETCH_ASSOC);
                 ?>
             </tr>
         </table>
+
+        <a class="button" href="tips_list.php">Napiwki</a>
+
 
         <form class="range" method="get">
             <h3>Wybierz zakres dat do statystyk</h3>

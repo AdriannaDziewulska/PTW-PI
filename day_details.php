@@ -1,6 +1,6 @@
 <?php
+require_once 'includes/db.php';
 session_start();
-require 'includes/db.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
@@ -8,89 +8,63 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $user_id = $_SESSION['user_id'];
+$date = $_GET['date'] ?? $_GET['entry_date'] ?? null;
 
-if (!isset($_GET['date']) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['date'])) {
-    die("Niepoprawna data.");
-}
-$date = $_GET['date'];
-
-if (isset($_GET['delete_id'])) {
-    $delete_id = intval($_GET['delete_id']);
-    $stmt_del = $pdo->prepare("DELETE FROM entries WHERE id = ? AND user_id = ?");
-    $stmt_del->execute([$delete_id, $user_id]);
-    header("Location: day_details.php?date=$date");
+if (!$date) {
+    echo "Brak daty.";
     exit;
 }
 
-$stmt = $pdo->prepare("SELECT * FROM entries WHERE user_id = ? AND entry_date = ?");
+// Pobranie wszystkich wpisów dla danego dnia i użytkownika
+$stmt = $pdo->prepare("
+    SELECT en.entry_id, en.entry_date AS date, s.shift_name, s.start_time, s.end_time, s.total_hours, 
+           r.name AS rate_name, r.rate, r.currency, en.earned AS earned, 
+           e.employer_name, e.notes
+    FROM entries en
+    JOIN shifts s ON en.shift_id = s.shift_id
+    JOIN rate r ON en.rate_id = r.rate_id
+    JOIN employers e ON en.employer_id = e.employer_id
+    WHERE en.user_id = ? AND en.entry_date = ?
+");
 $stmt->execute([$user_id, $date]);
 $entries = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$total_hours = 0;
-$total_earned = 0;
-foreach ($entries as $entry) {
-    $total_hours += $entry['total_hours'];
-    $total_earned += $entry['total_earned'];
-}
-
+// Napiwki
+$tipsStmt = $pdo->prepare("SELECT total FROM tips WHERE date = ?");
+$tipsStmt->execute([$date]);
+$tip = $tipsStmt->fetchColumn() ?? 0.00;
 ?>
 <!DOCTYPE html>
 <html lang="pl">
-
 <head>
-    <meta charset="UTF-8" />
-    <title>Szczegóły dnia <?= htmlspecialchars($date) ?></title>
+    <meta charset="UTF-8">
+    <title>Szczegóły dnia</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
-
 <body>
-    <div class="day_details">
-        <a href="calendar.php" class="button">&larr; Powrót do kalendarza</a>
+    <div class="container form-login">
+        <h2>Szczegóły dnia: <?= htmlspecialchars($date) ?></h2>
 
-        <h2>Szczegóły dnia <?= htmlspecialchars($date) ?></h2>
-
-        <?php if (count($entries) === 0): ?>
-            <p>Brak wpisów w tym dniu.</p>
-            <p><a href="add_entry.php?date=<?= $date ?>" class="button">Dodaj nowy wpis</a></p>
+        <?php if ($entries): ?>
+            <?php foreach ($entries as $details): ?>
+                <div class="entry-details">
+                    <p><strong>Pracodawca:</strong> <?= htmlspecialchars($details['employer_name']) ?></p>
+                    <p><strong>Zmiana:</strong> <?= $details['shift_name'] ?> (<?= $details['start_time'] ?> - <?= $details['end_time'] ?>)</p>
+                    <p><strong>Stawka:</strong> <?= $details['rate'] . ' ' . $details['currency'] ?> (<?= $details['rate_name'] ?>)</p>
+                    <p><strong>Łącznie zarobione:</strong> <?= number_format($details['earned'], 2) . ' ' . $details['currency'] ?></p>
+                    <p><strong>Napiwki:</strong> <?= number_format($tip, 2) . ' ' . $details['currency'] ?></p>
+                    <a class="button" href="edit_entry.php?entry_id=<?= urlencode($details['entry_id']) ?>">Edytuj</a>
+                    <a class="button delete" href="delete_entry.php?entry_id=<?= urlencode($details['entry_id']) ?>" onclick="return confirm('Na pewno chcesz usunąć ten wpis?');">Usuń</a>
+                </div>
+                <hr>
+            <?php endforeach; ?>
         <?php else: ?>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Godzina rozpoczęcia</th>
-                        <th>Godzina zakończenia</th>
-                        <th>Stawka (zł)</th>
-                        <th>Łączne godziny</th>
-                        <th>Dochód (zł)</th>
-                        <th>Opis</th>
-                        <th>Akcje</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($entries as $entry): ?>
-                        <tr>
-                            <td><?= htmlspecialchars(substr($entry['start_time'], 0, 5)) ?></td>
-                            <td><?= htmlspecialchars(substr($entry['end_time'], 0, 5)) ?></td>
-                            <td><?= htmlspecialchars(number_format($entry['rate'], 2, ',', ' ')) ?></td>
-                            <td><?= htmlspecialchars(number_format($entry['total_hours'], 2, ',', ' ')) ?></td>
-                            <td><?= htmlspecialchars(number_format($entry['total_earned'], 2, ',', ' ')) ?></td>
-                            <td><?= nl2br(htmlspecialchars($entry['description'])) ?></td>
-                            <td>
-                                <a href="edit_entry.php?id=<?= $entry['id'] ?>">Edytuj</a>
-                                <a href="day_details.php?date=<?= $date ?>&delete_id=<?= $entry['id'] ?>" onclick="return confirm('Na pewno usunąć ten wpis?');" class="btn-delete">Usuń</a>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-
-            <div style="margin: 15px 0;">
-                Suma godzin: <?= number_format($total_hours, 2, ',', ' ') ?> <br>
-                Suma dochodu: <?= number_format($total_earned, 2, ',', ' ') ?> zł
-            </div>
-
-            <p><a href="add_entry.php?date=<?= $date ?>" class="button">Dodaj nowy wpis</a></p>
+            <p>Brak danych dla tego dnia.</p>
         <?php endif; ?>
+
+        <nav>
+            <a class="button" href="calendar.php">← Powrót do kalendarza</a>
+        </nav>
     </div>
 </body>
-
 </html>

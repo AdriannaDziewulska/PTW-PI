@@ -1,37 +1,20 @@
 <?php
 session_start();
-require 'includes/db.php';
+require_once 'includes/db.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
     exit;
 }
 
-$message = '';
-$default_date = $_GET['date'] ?? date('Y-m-d');
+// Pobierz dostępnych pracodawców
+$employers = $pdo->query("SELECT employer_id, employer_name FROM employers")->fetchAll(PDO::FETCH_ASSOC);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $user_id = $_SESSION['user_id'];
-    $entry_date = $_POST['date'];
-    $start_time = $_POST['start_time'];
-    $end_time = $_POST['end_time'];
-    $rate = floatval($_POST['rate']);
+// Pobierz dostępne zmiany
+$shifts = $pdo->query("SELECT shift_id, shift_name FROM shifts")->fetchAll(PDO::FETCH_ASSOC);
 
-    if (strtotime($end_time) <= strtotime($start_time)) {
-        $message = "Godzina zakończenia musi być późniejsza niż rozpoczęcia.";
-    } else {
-        $hours = (strtotime($end_time) - strtotime($start_time)) / 3600;
-        $total_earned = $hours * $rate;
-
-        $stmt = $pdo->prepare("INSERT INTO entries (user_id, entry_date, start_time, end_time, rate, total_hours, total_earned) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        if ($stmt->execute([$user_id, $entry_date, $start_time, $end_time, $rate, $hours, $total_earned])) {
-            header("Location: calendar.php");
-            exit;
-        } else {
-            $message = "Błąd dodawania wpisu.";
-        }
-    }
-}
+// Pobierz dostępne stawki
+$rates = $pdo->query("SELECT rate_id, name, rate, currency FROM rate")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -41,33 +24,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <title>Dodaj wpis</title>
     <link rel="stylesheet" href="css/styles.css">
-
 </head>
 
 <body>
-    <div class="day_details">
-        
-        <a href="calendar.php" class="button">← Powrót do kalendarza</a>
-        <h2>Dodaj wpis do pracomierza</h2>
-        <form method="POST">
+    <div class="container form-login">
+        <form class="form-entry" method="post" action="save_entry.php">
+            <h2>Dodaj wpis</h2>
+
+            <?php
+            $date = $_GET['date'] ?? '';
+            ?>
             <label>Data:</label>
-            <input type="date" name="date" value="<?= htmlspecialchars($default_date) ?>" required>
+            <input type="date" name="entry_date" required value="<?= htmlspecialchars($date) ?>">
 
-            <label>Godzina rozpoczęcia:</label>
-            <input type="time" name="start_time" required>
 
-            <label>Godzina zakończenia:</label>
-            <input type="time" name="end_time" required>
+            <label>Pracodawca:</label>
+            <select name="employer_id" required>
+                <?php foreach ($employers as $employer): ?>
+                    <option value="<?= $employer['employer_id'] ?>"><?= htmlspecialchars($employer['employer_name']) ?></option>
+                <?php endforeach; ?>
+            </select>
 
-            <label>Stawka (zł/h):</label>
-            <input type="number" step="0.01" name="rate" required>
+            <label>Zmiana:</label>
+            <select name="shift_id" required>
+                <?php foreach ($shifts as $shift): ?>
+                    <option value="<?= $shift['shift_id'] ?>"><?= htmlspecialchars($shift['shift_name']) ?></option>
+                <?php endforeach; ?>
+            </select>
+
+            <label>Stawka:</label>
+            <select name="rate_id" required>
+                <?php foreach ($rates as $rate): ?>
+                    <option value="<?= $rate['rate_id'] ?>">
+                        <?= htmlspecialchars($rate['name']) ?> - <?= number_format($rate['rate'], 2) ?> <?= $rate['currency'] ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
 
             <button type="submit">Zapisz wpis</button>
+            <a class="button" href="calendar.php">Anuluj</a>
         </form>
-
-        <?php if ($message): ?>
-            <p><?= htmlspecialchars($message) ?></p>
-        <?php endif; ?>
 
     </div>
 </body>
