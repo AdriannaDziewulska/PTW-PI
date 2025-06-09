@@ -7,14 +7,11 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// Pobierz dostępnych pracodawców
 $employers = $pdo->query("SELECT employer_id, employer_name FROM employers")->fetchAll(PDO::FETCH_ASSOC);
-
-// Pobierz dostępne zmiany
 $shifts = $pdo->query("SELECT shift_id, shift_name FROM shifts")->fetchAll(PDO::FETCH_ASSOC);
-
-// Pobierz dostępne stawki
 $rates = $pdo->query("SELECT rate_id, name, rate, currency FROM rate")->fetchAll(PDO::FETCH_ASSOC);
+
+
 ?>
 
 <!DOCTYPE html>

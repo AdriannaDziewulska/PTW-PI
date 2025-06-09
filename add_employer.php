@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $stmt = $pdo->prepare("INSERT INTO employers (employer_name, employer_background_color, notes) VALUES (?, ?, ?)");
             $stmt->execute([$name, $color, $notes]);
-            header("Location: settings.php?success=1");
+            header("Location: calendar.php");
             exit;
         } catch (PDOException $e) {
             echo "Błąd zapisu: " . $e->getMessage();
@@ -19,4 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo "Nazwa pracodawcy nie może być pusta.";
     }
 }
+header("Location: calendar.php");
+exit;
+
 ?>

@@ -14,18 +14,15 @@ $year = isset($_GET['year']) ? intval($_GET['year']) : date('Y');
 $days_in_month = cal_days_in_month(CAL_GREGORIAN, $month, $year);
 $first_day_week = date('N', strtotime("$year-$month-01"));
 
-// Dane użytkownika
 $stmt = $pdo->prepare("SELECT username, profile_photo FROM users WHERE user_id = ?");
 $stmt->execute([$user_id]);
 $userData = $stmt->fetch(PDO::FETCH_ASSOC);
 $username = $userData['username'];
 $profilePhoto = $userData['profile_photo'];
 
-// Zakres dat
 $start_date = $_GET['start_date'] ?? "$year-$month-01";
 $end_date = $_GET['end_date'] ?? "$year-$month-" . str_pad($days_in_month, 2, '0', STR_PAD_LEFT);
 
-// Pobierz wpisy z bieżącego miesiąca
 $stmt = $pdo->prepare("
     SELECT 
         e.entry_id, e.entry_date, 
@@ -40,7 +37,6 @@ $stmt->execute([$user_id, $year, $month]);
 $entries = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 
-// Pobierz wszystkie święta
 $holidays = [];
 $stmtHolidays = $pdo->query("SELECT date, name, holidays_background_color FROM holidays");
 while ($row = $stmtHolidays->fetch(PDO::FETCH_ASSOC)) {
@@ -51,7 +47,6 @@ while ($row = $stmtHolidays->fetch(PDO::FETCH_ASSOC)) {
 }
 
 
-// Grupowanie po dacie
 $entries_by_date = [];
 foreach ($entries as $entry) {
     $date = $entry['entry_date'];
@@ -62,7 +57,6 @@ foreach ($entries as $entry) {
 }
 
 
-// STATYSTYKI - obliczenia ręczne z czasu i stawki
 $stats_stmt = $pdo->prepare("
     SELECT e.entry_date, s.start_time, s.end_time, r.rate 
     FROM entries e
@@ -74,6 +68,7 @@ $stats_stmt->execute([$user_id, $start_date, $end_date]);
 $stats_entries = $stats_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $dailyStats = [];
+$dailyEarnings = [];
 $sum_hours = 0;
 $sum_earned = 0;
 
@@ -81,25 +76,28 @@ foreach ($stats_entries as $e) {
     $date = $e['entry_date'];
     $start = new DateTime($e['start_time']);
     $end = new DateTime($e['end_time']);
-    $interval = $start->diff($end);
-    $hours = $interval->h + $interval->i / 60;
-    $rate = $e['rate_per_hour'] ?? 0;
+    $hours = ($end->getTimestamp() - $start->getTimestamp()) / 3600;
+    if ($hours < 0) $hours += 24; // jeśli zmiana przez północ
+    $rate = $e['rate'] ?? 0;
     $earned = round($hours * $rate, 2);
 
     $dailyStats[$date] = ($dailyStats[$date] ?? 0) + $hours;
+    $dailyEarnings[$date] = ($dailyEarnings[$date] ?? 0) + $earned;
     $sum_hours += $hours;
     $sum_earned += $earned;
 }
 
+
 ksort($dailyStats);
 $labels = array_keys($dailyStats);
 $hoursData = array_values($dailyStats);
-$earningsData = array_map(fn($h) => round($h * 25, 2), $hoursData); // lub zamień 25 na dynamiczną stawkę
+$earningsData = array_values($dailyEarnings);
 
 $summary = [
     'sum_hours' => $sum_hours,
     'sum_earned' => $sum_earned
 ];
+
 ?>
 <!DOCTYPE html>
 <html lang="pl">
@@ -134,7 +132,6 @@ $summary = [
         $month = isset($_GET['month']) ? (int)$_GET['month'] : date('n');
         $year = isset($_GET['year']) ? (int)$_GET['year'] : date('Y');
 
-        // Poprzedni / następny miesiąc
         $prevMonth = $month - 1;
         $nextMonth = $month + 1;
         $prevYear = $year;
@@ -235,7 +232,9 @@ $summary = [
         </div>
 
         <div>
+            <h3>Wykres godzin:</h3>
             <canvas id="hoursChart" style="margin-bottom:40px;"></canvas>
+            <h3>Wykres zarobków:</h3>
             <canvas id="earningsChart"></canvas>
         </div>
 

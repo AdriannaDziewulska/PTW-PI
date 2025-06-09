@@ -14,7 +14,6 @@ if (!isset($_GET['holiday_id']) || !is_numeric($_GET['holiday_id'])) {
 
 $holiday_id = intval($_GET['holiday_id']);
 
-// Usuwanie święta
 $stmt = $pdo->prepare("DELETE FROM holidays WHERE holiday_id = ?");
 $stmt->execute([$holiday_id]);
 

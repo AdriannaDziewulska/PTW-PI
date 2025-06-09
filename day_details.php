@@ -15,7 +15,6 @@ if (!$date) {
     exit;
 }
 
-// Pobranie wszystkich wpisów dla danego dnia i użytkownika
 $stmt = $pdo->prepare("
     SELECT en.entry_id, en.entry_date AS date, s.shift_name, s.start_time, s.end_time, s.total_hours, 
            r.name AS rate_name, r.rate, r.currency, en.earned AS earned, 
@@ -29,7 +28,6 @@ $stmt = $pdo->prepare("
 $stmt->execute([$user_id, $date]);
 $entries = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Napiwki
 $tipsStmt = $pdo->prepare("SELECT total FROM tips WHERE date = ?");
 $tipsStmt->execute([$date]);
 $tip = $tipsStmt->fetchColumn() ?? 0.00;

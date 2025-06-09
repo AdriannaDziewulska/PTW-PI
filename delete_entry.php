@@ -14,11 +14,9 @@ if (!isset($_GET['entry_id']) || !is_numeric($_GET['entry_id'])) {
 }
 $entry_id = intval($_GET['entry_id']);
 
-// Usuwanie tylko wpisu należącego do zalogowanego użytkownika
 $stmt = $pdo->prepare("DELETE FROM entries WHERE entry_id = ? AND user_id = ?");
 $stmt->execute([$entry_id, $user_id]);
 
-// Po usunięciu przekieruj do kalendarza lub szczegółów dnia
 header('Location: calendar.php');
 exit;
 ?>

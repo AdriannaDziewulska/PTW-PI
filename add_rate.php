@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $stmt = $pdo->prepare("INSERT INTO rate (name, rate, currency) VALUES (?, ?, ?)");
             $stmt->execute([$name, $rate, $currency]);
-            header("Location: settings.php?success=1");
+            header("Location: calendar.php");
             exit;
         } catch (PDOException $e) {
             echo "Błąd zapisu: " . $e->getMessage();
@@ -19,4 +19,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo "Wszystkie pola muszą być poprawnie wypełnione.";
     }
 }
+
 ?>

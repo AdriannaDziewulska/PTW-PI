@@ -9,7 +9,6 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// Dodawanie napiwku
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $date = $_POST['date'];
     $total = $_POST['total'];
@@ -25,7 +24,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Wyświetlanie napiwków tylko zalogowanego użytkownika
 $stmt = $pdo->prepare("SELECT date, total FROM tips WHERE user_id = ? ORDER BY date DESC");
 $stmt->execute([$user_id]);
 $tips = $stmt->fetchAll(PDO::FETCH_ASSOC);

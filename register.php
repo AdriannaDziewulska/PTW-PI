@@ -7,9 +7,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $password = $_POST['password'];
     $hash = password_hash($password, PASSWORD_DEFAULT);
 
-    // Obsługa zdjęcia profilowego
     $uploadDir = 'uploads/';
-    $photoName = null; // domyślnie null
+    $photoName = null; 
 
     if (isset($_FILES['profile_photo']) && $_FILES['profile_photo']['error'] === UPLOAD_ERR_OK) {
         $tmpName = $_FILES['profile_photo']['tmp_name'];
@@ -23,7 +22,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 
-    // Dodanie użytkownika z profile_photo (może być NULL)
     $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash, profile_photo) VALUES (?, ?, ?, ?)");
 
     try {

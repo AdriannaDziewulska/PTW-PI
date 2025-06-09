@@ -24,11 +24,8 @@ if (!$entry) {
     die("Nie znaleziono wpisu.");
 }
 
-// Pobierz dostępnych pracodawców
 $employers = $pdo->query("SELECT employer_id, employer_name FROM employers")->fetchAll(PDO::FETCH_ASSOC);
-// Pobierz dostępne zmiany
 $shifts = $pdo->query("SELECT shift_id, shift_name FROM shifts")->fetchAll(PDO::FETCH_ASSOC);
-// Pobierz dostępne stawki
 $rates = $pdo->query("SELECT rate_id, name, rate, currency FROM rate")->fetchAll(PDO::FETCH_ASSOC);
 
 
@@ -39,10 +36,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $employer_id = $_POST['employer_id'];
     $shift_id = $_POST['shift_id'];
     $rate_id = $_POST['rate_id'];
-    $description = $_POST['description'];
 
-    $stmt = $pdo->prepare("UPDATE entries SET entry_date = ?, employer_id = ?, shift_id = ?, rate_id = ?, description = ? WHERE entry_id = ? AND user_id = ?");
-    if ($stmt->execute([$entry_date, $employer_id, $shift_id, $rate_id, $description, $id, $user_id])) {
+    $stmt = $pdo->prepare("UPDATE entries SET entry_date = ?, employer_id = ?, shift_id = ?, rate_id = ? WHERE entry_id = ? AND user_id = ?");
+    if ($stmt->execute([$entry_date, $employer_id, $shift_id, $rate_id, $id, $user_id])) {
         header("Location: day_details.php?date=" . urlencode($entry_date) . "&id=" . $id);
         exit;
     } else {

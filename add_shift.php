@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $stmt = $pdo->prepare("INSERT INTO shifts (shift_name, start_time, end_time) VALUES (?, ?, ?)");
             $stmt->execute([$name, $start, $end]);
-            header("Location: settings.php?success=1");
+            header("Location: calendar.php");
             exit;
         } catch (PDOException $e) {
             echo "Błąd zapisu: " . $e->getMessage();
